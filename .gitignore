@@ -173,3 +173,4 @@ cython_debug/
 .pt
 checkpoints/*.pt*
 example/cache
+example/predicted.tif
