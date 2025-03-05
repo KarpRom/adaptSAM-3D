@@ -3,7 +3,7 @@ Initialize a SAM video predictor based on the sam2 model and provide functions t
 """
 
 import os
-import tifffile as tif
+import shutil
 
 import cv2
 import numpy as np
@@ -13,20 +13,32 @@ from sam2.build_sam import build_sam2_video_predictor
 
 
 class AdaptSAMPredictor(object):
-    def __init__(self, model_cfg, sam2_checkpoint, tmp_dir="cache"):
+    def __init__(
+        self,
+        model_cfg,
+        sam2_checkpoint,
+        tmp_dir="cache",
+        cast_type=torch.bfloat16,
+        compile_sam=False,
+    ):
         # Find the proper device for inference
+        self.cast_type = cast_type
         self.device = self.setup()
-        self.predictor = self.load_predictor(self.device, model_cfg, sam2_checkpoint)
-
-        # Create the tmp dir
         self.tmp_dir = tmp_dir
+        self.predictor = self.load_predictor(self.device, model_cfg, sam2_checkpoint, compile_sam)
+
+        self.predictor = torch.compile(self.predictor)
+
+    def create_tmp(self):
         os.makedirs(self.tmp_dir, exist_ok=True)
 
     def clear_tmp(self):
-        pass
+        shutil.rmtree(self.tmp_dir)
 
-    def load_predictor(self, device, model_cfg, sam2_checkpoint):
-        return build_sam2_video_predictor(model_cfg, sam2_checkpoint, device=device)
+    def load_predictor(self, device, model_cfg, sam2_checkpoint, compile_sam):
+        return build_sam2_video_predictor(
+            model_cfg, sam2_checkpoint, device=device, vos_optimized=compile_sam
+        )
 
     def setup(self):
         # select the device for computation
@@ -39,8 +51,9 @@ class AdaptSAMPredictor(object):
         print(f"using device: {device}")
 
         if device.type == "cuda":
-            # use bfloat16 for the entire notebook
-            torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
+            torch.backends.cudnn.benchmark = True
+            # use select cast type
+            torch.autocast("cuda", dtype=self.cast_type).__enter__()
             # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
             if torch.cuda.get_device_properties(0).major >= 8:
                 torch.backends.cuda.matmul.allow_tf32 = True
@@ -54,6 +67,7 @@ class AdaptSAMPredictor(object):
         return device
 
     def _infer_half_plane(self, video_dir, X, Y):
+        # with torch.inference_mode(), torch.autocast("cuda", dtype=self.cast_type):
         # scan all the JPEG frame names in this directory
         frame_names = [
             p
@@ -92,6 +106,8 @@ class AdaptSAMPredictor(object):
             if out_mask_logits.max() <= 0:
                 break
 
+        # out_mat is shape = T, X, Y
+        # frames are stacked on the first axis
         out_mat = np.zeros(((len(frame_names),) + out_mask_logits[0].shape[1:]))
         for out_frame_idx in range(len(frame_names)):
             if out_frame_idx in video_segments:
@@ -118,6 +134,7 @@ class AdaptSAMPredictor(object):
 
         y = self._assemble_plane(y_left, y_right)
 
+        # T, X, Y
         return y
 
     def _generate_plane_dir(self, mat, dim, center):
@@ -129,7 +146,9 @@ class AdaptSAMPredictor(object):
         os.makedirs(right_dir, exist_ok=True)
 
         mat_cpy = mat.copy()
-        mat_cpy = np.moveaxis(mat, dim, 0)
+        mat_cpy = np.moveaxis(mat_cpy, dim, 0)
+
+        # Image order is reversed through the name of the 2d slice
         for i in range(center, 0, -1):
             cv2.imwrite(os.path.join(left_dir, f"{center-i}.jpg"), mat_cpy[i])
 
@@ -148,34 +167,41 @@ class AdaptSAMPredictor(object):
                 return False
         return True
 
-    def predict(self, mat, point_prompt):
+    def predict(self, mat, point_prompt, return_planes=False):
         # Clear any existing file in the tmp folder
+        self.create_tmp()
+
+        # Generate a video dir for the given plane
+        # Plane dim=0
+        plane_dir = self._generate_plane_dir(mat, dim=0, center=point_prompt[0])
+        # Process plane left to right and right to left
+        y_plane0 = self._process_plane(plane_dir, X=point_prompt[1], Y=point_prompt[2])
+        # from Y, Z, X to X, Y, Z
+        y_plane0 = np.moveaxis(y_plane0, -1, 0)
+
+        # Plane dim=1
+        plane_dir = self._generate_plane_dir(mat, dim=1, center=point_prompt[1])
+        y_plane1 = self._process_plane(plane_dir, X=point_prompt[0], Y=point_prompt[2])
+        # from X, Z, Y to X, Y, Z
+        y_plane1 = np.swapaxes(y_plane1, 1, -1)
+
+        # Plane dim=2
+        plane_dir = self._generate_plane_dir(mat, dim=2, center=point_prompt[2])
+        # X, Y, Z
+        y_plane2 = self._process_plane(plane_dir, X=point_prompt[0], Y=point_prompt[1])
+
+        if return_planes:
+            return y_plane0, y_plane1, y_plane2
+
+        # Compute mean prediction
+        planes = np.stack([y_plane0, y_plane1, y_plane2], axis=0)
+        predicted = np.mean(planes, axis=0)
+
         self.clear_tmp()
 
-        # Plane 1
-        # Generate a video dir for the given plane
-        plane_dir = self._generate_plane_dir(mat, dim=2, center=point_prompt[2])
-        # Process plane left to right and right to left
-        y_plane1 = self._process_plane(plane_dir, X=point_prompt[0], Y=point_prompt[1])
-
-        # Plane 2
-        plane_dir = self._generate_plane_dir(mat, dim=0, center=point_prompt[0])
-        y_plane2 = self._process_plane(plane_dir, X=point_prompt[1], Y=point_prompt[2])
-
-        # Plane 3
-        plane_dir = self._generate_plane_dir(mat, dim=1, center=point_prompt[1])
-        y_plane3 = self._process_plane(plane_dir, X=point_prompt[0], Y=point_prompt[2])
-
-        # Rotate plane 2
-        # Y,Z,X to X,Y,Z
-        y_plane2 = np.moveaxis(y_plane2, (0, 1, 2), (2, 0, 1))
-
-        # Rotate plane 3
-        # X,Z,Y to X,Y,Z
-        y_plane3 = np.moveaxis(y_plane3, (0, 1, 2), (0, 2, 1))
-
-        planes = np.stack([y_plane1, y_plane2, y_plane3], axis=0)
-        predicted = np.mean(planes, axis=0)
+        assert (
+            predicted.shape == mat.shape
+        ), f"Expected prediction.shape == mat.shape but found {predicted.shape} != {mat.shape}"
 
         return predicted
 
