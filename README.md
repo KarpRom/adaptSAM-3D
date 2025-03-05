@@ -71,6 +71,8 @@ TBD
 
 - [ ] Support multiple point prompt
 - [ ] Support positive and negative point prompt
+- [ ] Support bounding box prompt
+- [ ] Support mask prompt
 
 ---
 
