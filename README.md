@@ -6,7 +6,30 @@ This repository provides a **simple and efficient** way to perform **3D volume e
 
 ---
 
+## 🚀 Installation
+
+### 1️⃣ Install SAM2
+
+```sh
+git clone https://github.com/facebookresearch/sam2
+cd sam2
+pip install .
+```
+
+### 2️⃣ Install AdaptSAM-3D
+
+```sh
+git clone https://github.com/KarpRom/adaptSAM-3D
+cd adaptSAM-3D
+pip install .
+```
+
+---
+
 ## ⚡ Quickstart
+
+First make sure you have pretrained weights from sam2.1.
+You can use the script in `checkpoints/download_ckpts.sh` to download them.
 
 Want to try **AdaptSAM 3D** immediately? Here's a minimal example:
 
@@ -34,33 +57,13 @@ prediction = predictor.predict(mat, point_prompt)
 tif.imwrite("predicted.tif", prediction)
 ```
 
-## 🚀 Installation
-
-### 1️⃣ Create a Virtual Environment (Optional)
-
-```sh
-conda create -n adaptsam python=3.10
-```
-
-### 2️⃣ Install SAM2
-
-```sh
-git clone https://github.com/facebookresearch/sam2
-cd sam2
-pip install .
-```
-
-### 3️⃣ Install AdaptSAM-3D
-
-```sh
-git clone https://github.com/KarpRom/adaptSAM-3D
-cd adaptSAM-3D
-pip install .
-```
+Or you can take a look at the [example](/example/cell_segmentation.ipynb)
 
 ---
 
 ## Finetuning Sam
+
+TBD
 
 ---
 
