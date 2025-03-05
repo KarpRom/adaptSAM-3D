@@ -13,7 +13,7 @@ Want to try **AdaptSAM 3D** immediately? Here's a minimal example:
 ```python
 import sam2
 import tifffile as tif
-from adapt_sam_3d import AdaptSAMPredictor
+from adaptsam import AdaptSAMPredictor
 
 # Load the SAM2 predictor
 predictor = AdaptSAMPredictor(
