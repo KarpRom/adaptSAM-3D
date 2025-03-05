@@ -1,0 +1,4 @@
+sam2
+tifffile
+opencv-python
+matplotlib
