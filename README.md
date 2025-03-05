@@ -4,7 +4,7 @@ Segment Anything Model 2 (SAM2) is a foundation model designed for **promptable 
 
 This repository provides a **simple and efficient** way to perform **3D volume estimation** using SAM2.
 
-<img src="figs/2d_to_3d.png" alt="2d object segmentation to 3d" width="300">
+<img src="figs/2d_to_3d_v2.png" alt="2d object segmentation to 3d" width="1000">
 
 ---
 
