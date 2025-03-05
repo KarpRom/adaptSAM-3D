@@ -27,8 +27,6 @@ class AdaptSAMPredictor(object):
         self.tmp_dir = tmp_dir
         self.predictor = self.load_predictor(self.device, model_cfg, sam2_checkpoint, compile_sam)
 
-        self.predictor = torch.compile(self.predictor)
-
     def create_tmp(self):
         os.makedirs(self.tmp_dir, exist_ok=True)
 
