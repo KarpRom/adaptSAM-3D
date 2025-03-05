@@ -67,6 +67,13 @@ TBD
 
 ---
 
+## Roadmap
+
+- [ ] Support multiple point prompt
+- [ ] Support positive and negative point prompt
+
+---
+
 ## ❗ Troubleshooting
 
 - **No space left when installing SAM2?**  
