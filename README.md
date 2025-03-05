@@ -63,35 +63,6 @@ pip install .
 
 ---
 
-## 🏁 Getting Started
-
-Here is a basic example on how to use AdaptSAM-3D. See `example/cell_segmentation.ipynb` for a complete example.
-
-```python
-import sam2
-import tifffile as tif
-
-# Prepare the predictor by loading SAM2
-model_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-sam2_checkpoint = "checkpoints/sam2.1_hiera_b+.pt"
-predictor = AdaptSAMPredictor(model_cfg, sam2_checkpoint)
-
-# Load data
-data_path = "example/3d_cell.tif"
-mat = tif.memmap(data_path)
-
-# Create a point prompt
-# Same axis order as mat
-point_prompt = [10,20,30]
-
-# Predict on the full matrix with the point prompt
-prediction = predictor.predict(mat, point_prompt)
-
-tif.imwrite("predicted.tif", prediction)
-```
-
----
-
 ## Finetuning Sam
 
 ---
