@@ -1,6 +1,6 @@
-# **Adapt SAM2 3D: Segment Anything 2.1 for 3D Object Extraction**
+# **Adapt SAM2 3D: Segment Anything 2.1 for 3D Object Annotation**
 
-Segment Anything Model 2 (SAM2) is a foundation model designed for **promptable visual segmentation** in images and videos. SAM2 2 introduced **object tracking through time** using a streaming memory mechanism which allows to treat 2D slices of volumetric images as video frames.
+Segment Anything Model 2 (SAM2) is a foundation model designed for **promptable visual segmentation** in images and videos. SAM2 2 introduced **object tracking through time** using a streaming memory mechanism. This process can be used to find 3D object by considering 2D slices of volumetric images as video frames.
 
 This repository provides a **simple and efficient** way to perform **3D volume estimation** using SAM2.
 
@@ -83,3 +83,7 @@ TBD
   ```sh
   TMPDIR=<path> pip install .e
   ```
+
+## Support
+
+You can reach out to me here: romain.karpinski@loria.fr
